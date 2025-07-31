@@ -1,0 +1,81 @@
+
+GARCH(1,1) fit using last 5 h (2,467 returns)
+----------------------------------------------
+omega  (ω) :  9.485969e-07
+alpha1 (α₁):  0.100000
+beta1  (β₁):  0.800000
+----------------------------------------------
+/home/ssm-user/kalshi-env/lib/python3.12/site-packages/arch/univariate/base.py:768: ConvergenceWarning: The optimizer returned code 4. The message is:
+Inequality constraints incompatible
+See scipy.optimize.fmin_slsqp for code meaning.
+
+  warnings.warn(
+
+GARCH(1,1) fit using last 5 h (2,548 returns)
+----------------------------------------------
+omega  (ω) :  9.468830e-07
+alpha1 (α₁):  0.133873
+beta1  (β₁):  0.807527
+----------------------------------------------
+
+GARCH(1,1) fit using last 5 h (2,668 returns)
+----------------------------------------------
+omega  (ω) :  1.050980e-06
+alpha1 (α₁):  0.100000
+beta1  (β₁):  0.800000
+----------------------------------------------
+/home/ssm-user/kalshi-env/lib/python3.12/site-packages/arch/univariate/base.py:768: ConvergenceWarning: The optimizer returned code 4. The message is:
+Inequality constraints incompatible
+See scipy.optimize.fmin_slsqp for code meaning.
+
+  warnings.warn(
+
+GARCH(1,1) fit using last 5 h (2,788 returns)
+----------------------------------------------
+omega  (ω) :  1.130950e-06
+alpha1 (α₁):  0.100000
+beta1  (β₁):  0.800000
+----------------------------------------------
+/home/ssm-user/kalshi-env/lib/python3.12/site-packages/arch/univariate/base.py:768: ConvergenceWarning: The optimizer returned code 4. The message is:
+Inequality constraints incompatible
+See scipy.optimize.fmin_slsqp for code meaning.
+
+  warnings.warn(
+
+GARCH(1,1) fit using last 5 h (2,929 returns)
+----------------------------------------------
+omega  (ω) :  2.428492e-07
+alpha1 (α₁):  0.050000
+beta1  (β₁):  0.930000
+----------------------------------------------
+/home/ssm-user/kalshi-env/lib/python3.12/site-packages/arch/univariate/base.py:768: ConvergenceWarning: The optimizer returned code 4. The message is:
+Inequality constraints incompatible
+See scipy.optimize.fmin_slsqp for code meaning.
+
+  warnings.warn(
+
+GARCH(1,1) fit using last 5 h (3,049 returns)
+----------------------------------------------
+omega  (ω) :  2.553782e-07
+alpha1 (α₁):  0.050000
+beta1  (β₁):  0.930000
+----------------------------------------------
+/home/ssm-user/kalshi-env/lib/python3.12/site-packages/arch/univariate/base.py:768: ConvergenceWarning: The optimizer returned code 4. The message is:
+Inequality constraints incompatible
+See scipy.optimize.fmin_slsqp for code meaning.
+
+  warnings.warn(
+
+GARCH(1,1) fit using last 5 h (3,169 returns)
+----------------------------------------------
+omega  (ω) :  2.780882e-07
+alpha1 (α₁):  0.050000
+beta1  (β₁):  0.930000
+----------------------------------------------
+
+GARCH(1,1) fit using last 5 h (3,290 returns)
+----------------------------------------------
+omega  (ω) :  2.915937e-07
+alpha1 (α₁):  0.050000
+beta1  (β₁):  0.930000
+----------------------------------------------

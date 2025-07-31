@@ -1,0 +1,21 @@
+/home/ssm-user/fit_garch_from_db.py:92: RuntimeWarning: divide by zero encountered in log
+  log_returns = np.diff(np.log(prices)) * 100.0  # ×100 → “percent” units
+/home/ssm-user/kalshi-env/lib/python3.12/site-packages/numpy/lib/_function_base_impl.py:1518: RuntimeWarning: invalid value encountered in subtract
+  a = op(a[slice1], a[slice2])
+Traceback (most recent call last):
+  File "/home/ssm-user/fit_garch_from_db.py", line 94, in <module>
+    omega, alpha1, beta1 = fit_garch(log_returns)
+                           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ssm-user/fit_garch_from_db.py", line 82, in fit_garch
+    model = arch_model(returns, mean="Zero", vol="GARCH", p=1, q=1)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ssm-user/kalshi-env/lib/python3.12/site-packages/arch/univariate/mean.py", line 1973, in arch_model
+    am = ZeroMean(y, hold_back=hold_back, rescale=rescale)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ssm-user/kalshi-env/lib/python3.12/site-packages/arch/univariate/mean.py", line 1253, in __init__
+    super().__init__(
+  File "/home/ssm-user/kalshi-env/lib/python3.12/site-packages/arch/univariate/mean.py", line 260, in __init__
+    super().__init__(
+  File "/home/ssm-user/kalshi-env/lib/python3.12/site-packages/arch/univariate/base.py", line 196, in __init__
+    raise ValueError(
+ValueError: NaN or inf values found in y. y must contains only finite values.

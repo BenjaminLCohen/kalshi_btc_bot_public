@@ -1,0 +1,17 @@
+# Ignore Python build junk
+__pycache__/
+*.py[cod]
+
+# Ignore virtual environments
+kalshi-env/
+.env/
+venv/
+
+# Ignore logs, caches, and large derived data
+*.log
+*.sqlite
+*.cache
+snap/
+
+# Ignore secrets (uncomment if present)
+# *.json        # e.g. credentials.json
