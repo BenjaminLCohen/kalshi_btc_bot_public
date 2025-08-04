@@ -4,7 +4,7 @@ Monte-Carlo bid/ask engine  (v2: uses live GARCH params)
 
 • Reads ω, α₁, β₁ from ~/latest_garch.json
 • Simulates 5-second GARCH(1,1) paths
-• Quotes six strikes at ±250-USD ladder
+• Quotes arbitrary strike ladders fetched dynamically
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ import numpy as np
 
 # ── Config ────────────────────────────────────────────────────────────────
 PARAM_FILE = pathlib.Path.home() / "latest_garch.json"
-INTERVAL_USD = 250.0                      # strike spacing
 MC_PATHS = 1_000                         # Monte-Carlo simulations
 # -------------------------------------------------------------------------
 
@@ -58,23 +57,15 @@ def _probs_above_strikes(avg_prices: np.ndarray,
     return hits.mean(axis=1)
 
 
-def _six_strikes_around_spot(spot: float,
-                             interval: float = INTERVAL_USD) -> np.ndarray:
-    anchor  = math.ceil(spot / interval) * interval
-    offsets = np.array([-3, -2, -1, 0, 1, 2], dtype=np.float64)
-    strikes = anchor + offsets * interval - 0.01
-    return strikes
-
-
 def garch_bid_ask_multi(initial_price: float,
                         base_T: int,
                         spot: float,
                         params: tuple[float, float, float],
-                        interval: float = INTERVAL_USD,
+                        strikes: list[float],
                         num_simulations: int = MC_PATHS) -> list[dict]:
-    """Return bid/ask quotes for six strikes."""
+    """Return bid/ask quotes for the provided strikes."""
     omega, alpha1, beta1 = params
-    strikes = _six_strikes_around_spot(spot, interval)
+    strikes = np.array(strikes, dtype=np.float64)
     horizons = [base_T - 5, base_T + 5]
     probs = []
 
@@ -143,11 +134,13 @@ if __name__ == "__main__":
         raise SystemExit("latest_garch.json not found — "
                          "run fit_garch_from_db.py first.")
 
+    strikes = [spot - 500, spot - 250, spot, spot + 250, spot + 500]
     quotes = garch_bid_ask_multi(
         initial_price = spot,
         base_T        = secs_left_this_hour,
         spot          = spot,
         params        = (omega, alpha1, beta1),
+        strikes       = strikes,
     )
 
     for q in quotes:
