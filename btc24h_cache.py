@@ -36,6 +36,11 @@ class BTC24hCache:
         with self._lock:
             return self._buffer[-1][1] if self._buffer else None
 
+    def get_latest(self):
+        """Return tuple ``(timestamp, spot)`` of the most recent sample."""
+        with self._lock:
+            return self._buffer[-1] if self._buffer else (None, None)
+
     def get_vol(self, window_sec: float):
         cutoff = time.time() - window_sec
         with self._lock:

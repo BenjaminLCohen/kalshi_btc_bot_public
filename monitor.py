@@ -16,19 +16,18 @@ from statistics import mean
 
 from kalshi_client import Kalshi
 from contract_picker import pick_six_btc_hourlies
-from black_scholes import bs_digital_24h   # signature: (S0, K, T, sigma_24h, sigma_err)
 from btc24h_cache import BTC24hCache
-from volatility import VolatilityMetrics
+from garch_quote_engine import load_garch_params, garch_bid_ask_multi
 
 # ─── instantiate 24 h cache ───────────────────────────────────────────────
 cache = BTC24hCache(refresh=1.0)
-vols  = VolatilityMetrics.from_cache(cache)
 # ─── command-line flag ────────────────────────────────────────────────────
 p = argparse.ArgumentParser()
 p.add_argument("--env", choices=["demo", "live"], default="demo",
                help="which Kalshi environment to use")
 args = p.parse_args()
 k = Kalshi(env=args.env)
+params = load_garch_params()
 
 # round-trip times (milliseconds) for Kalshi market data requests
 #
@@ -48,7 +47,7 @@ def _print_header(env: str, spot: float, vol: float) -> None:
     print(f"Avg latency {avg_latency:.2f} ms (last {len(api_latencies)} samples)")
     print("-" * 111)
     print(
-        f"{'Contract':<24} | {'Bid/Ask':<11} | {'BS Low':<8} | {'BS Mid':<8} | {'BS High':<8} | {'Lag ms':<7}"
+        f"{'Contract':<24} | {'Bid/Ask':<11} | {'MC Bid':<8} | {'MC Mid':<8} | {'MC Ask':<8} | {'Lag ms':<7}"
     )
     print("-" * 111)
 
@@ -56,26 +55,16 @@ def _print_row(
     ticker: str,
     bid: float,
     ask: float,
-    low: float,
-    mid: float,
-    high: float,
+    mc_bid: float,
+    mc_mid: float,
+    mc_ask: float,
     lag_ms: float,
 ) -> None:
     """Pretty-print a single market row with latency information."""
     ba = f"{bid:.2f}/{ask:.2f}"
     print(
-        f"{ticker:<24} | {ba:<11} | {low:<8.2f} | {mid:<8.2f} | {high:<8.2f} | {lag_ms:<7.2f}"
+        f"{ticker:<24} | {ba:<11} | {mc_bid:<8.2f} | {mc_mid:<8.2f} | {mc_ask:<8.2f} | {lag_ms:<7.2f}"
     )
-
-from datetime import datetime, timezone
-
-def _to_dt(expiry):
-    # Accept either ISO-8601 string or datetime already
-    if isinstance(expiry, str):
-        # handle the trailing “Z” (UTC) → “+00:00”
-        return datetime.fromisoformat(expiry.replace("Z", "+00:00"))
-    return expiry
-
 # ─── main loop ────────────────────────────────────────────────────────────
 def main():
     global last_latency_ms
@@ -85,44 +74,55 @@ def main():
 
     try:
         while True:
-            spot = cache.get_spot()
-            sigma_err  = 0.34       # 1-minute if available, else fallback
+            ts, spot = cache.get_latest()
+            if spot is None:
+                continue
+            data_latency_ms = (time.time() - ts) * 1000
             vol24h = 0.34
-            _print_header(args.env, spot, vol24h)
 
             contracts = pick_six_btc_hourlies(k, spot)
-            # --- inside main() loop ---
+            strikes = [c["strike"] for c in contracts]
+
+            now = datetime.now(timezone.utc)
+            next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+            seconds_to_hour = int((next_hour - now).total_seconds())
+
+            mc_start = time.perf_counter()
+            quotes = garch_bid_ask_multi(
+                initial_price=spot,
+                base_T=seconds_to_hour,
+                spot=spot,
+                params=params,
+                strikes=strikes,
+            )
+            mc_time_ms = (time.perf_counter() - mc_start) * 1000
+
+            _print_header(args.env, spot, vol24h)
+
+            quote_map = {q["strike"]: q for q in quotes}
+
             for c in contracts:
-                 ticker = c["ticker"]        # was: c.ticker
+                ticker = c["ticker"]
 
-                 # --- measure time from request send to response received ---
-                 send_time = time.perf_counter()
-                 market = k.get(f"/markets/{ticker}")["market"]
-                 receive_time = time.perf_counter()
-                 last_latency_ms = (receive_time - send_time) * 1000
-                 api_latencies.append(last_latency_ms)
+                send_time = time.perf_counter()
+                market = k.get(f"/markets/{ticker}")["market"]
+                receive_time = time.perf_counter()
+                last_latency_ms = (receive_time - send_time) * 1000
+                api_latencies.append(last_latency_ms)
 
-                 bid, ask = market["yes_bid"], market["yes_ask"]
-                 # now = datetime.now(timezone.utc)
-                 # expiry_dt = _to_dt(c["expiry"])
-                 # T_years = max((expiry_dt - now).total_seconds(), 0) / (365*24*3600)
+                bid, ask = market["yes_bid"], market["yes_ask"]
+                q = quote_map[c["strike"]]
+                mc_bid = q["bid"]
+                mc_ask = q["ask"]
+                mc_mid = (mc_bid + mc_ask) / 2
 
-                 now = datetime.now(timezone.utc)
+                _print_row(ticker, bid, ask, mc_bid, mc_mid, mc_ask, last_latency_ms)
 
-                 # ── NEW: seconds until the next top-of-hour ──────────────────────
-                 next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-                 seconds_to_hour = (next_hour - now).total_seconds()
-                 T_years = seconds_to_hour / (365 * 24 * 3600)
-
-                 # --- Black-Scholes mid / band ---------------------------
-                 mid, low, high = bs_digital_24h(
-                    S0       = spot,
-                    K        = c["strike"],
-                    T        = T_years,
-                    sigma_24h= vol24h,
-                )
-
-                 _print_row(ticker, bid, ask, low, mid, high, last_latency_ms)
+            total_latency_ms = (time.time() - ts) * 1000
+            print(
+                f"Data {data_latency_ms:.2f} ms | MC {mc_time_ms:.2f} ms | "
+                f"Last API {last_latency_ms:.2f} ms | Total {total_latency_ms:.2f} ms",
+            )
             time.sleep(cache.refresh)
 
     except KeyboardInterrupt:
