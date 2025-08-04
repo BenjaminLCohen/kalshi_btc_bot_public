@@ -10,6 +10,7 @@ Use:
 
 import argparse
 import time
+from collections import deque
 from datetime import datetime, timedelta, timezone
 from statistics import mean
 
@@ -29,17 +30,42 @@ p.add_argument("--env", choices=["demo", "live"], default="demo",
 args = p.parse_args()
 k = Kalshi(env=args.env)
 
+# round-trip times (milliseconds) for Kalshi market data requests
+#
+# These values update on every API call and offer a simple view into
+# the latency between sending a request and receiving data back from
+# the exchange. ``api_latencies`` keeps the most recent samples while
+# ``last_latency_ms`` stores the latest measurement.
+api_latencies: deque[float] = deque(maxlen=100)
+last_latency_ms: float = 0.0
+
 # ─── helpers just for pretty output ───────────────────────────────────────
 def _print_header(env: str, spot: float, vol: float) -> None:
-    print(f"\n[{env.upper()}]  BTC spot ${spot:,.2f}   24-hour vol {vol*100:.2f}%")
-    print("-"*100)
-    print(f"{'Contract':<24} | {'Bid/Ask':<11} | {'BS Low':<8} | {'BS Mid':<8} | {'BS High':<8}")
-    print("-"*100)
+    avg_latency = mean(api_latencies) if api_latencies else 0.0
+    print(
+        f"\n[{env.upper()}]  BTC spot ${spot:,.2f}   24-hour vol {vol*100:.2f}%"
+    )
+    print(f"Avg latency {avg_latency:.2f} ms (last {len(api_latencies)} samples)")
+    print("-" * 111)
+    print(
+        f"{'Contract':<24} | {'Bid/Ask':<11} | {'BS Low':<8} | {'BS Mid':<8} | {'BS High':<8} | {'Lag ms':<7}"
+    )
+    print("-" * 111)
 
-def _print_row(ticker: str, bid: float, ask: float,
-               low: float, mid: float, high: float) -> None:
+def _print_row(
+    ticker: str,
+    bid: float,
+    ask: float,
+    low: float,
+    mid: float,
+    high: float,
+    lag_ms: float,
+) -> None:
+    """Pretty-print a single market row with latency information."""
     ba = f"{bid:.2f}/{ask:.2f}"
-    print(f"{ticker:<24} | {ba:<11} | {low:<8.2f} | {mid:<8.2f} | {high:<8.2f}")
+    print(
+        f"{ticker:<24} | {ba:<11} | {low:<8.2f} | {mid:<8.2f} | {high:<8.2f} | {lag_ms:<7.2f}"
+    )
 
 from datetime import datetime, timezone
 
@@ -52,6 +78,7 @@ def _to_dt(expiry):
 
 # ─── main loop ────────────────────────────────────────────────────────────
 def main():
+    global last_latency_ms
     # wait until we have at least one spot price
     while cache.get_spot() is None:
         time.sleep(0.1)
@@ -67,7 +94,14 @@ def main():
             # --- inside main() loop ---
             for c in contracts:
                  ticker = c["ticker"]        # was: c.ticker
+
+                 # --- measure time from request send to response received ---
+                 send_time = time.perf_counter()
                  market = k.get(f"/markets/{ticker}")["market"]
+                 receive_time = time.perf_counter()
+                 last_latency_ms = (receive_time - send_time) * 1000
+                 api_latencies.append(last_latency_ms)
+
                  bid, ask = market["yes_bid"], market["yes_ask"]
                  # now = datetime.now(timezone.utc)
                  # expiry_dt = _to_dt(c["expiry"])
@@ -88,7 +122,7 @@ def main():
                     sigma_24h= vol24h,
                 )
 
-                 _print_row(ticker, bid, ask, low, mid, high)
+                 _print_row(ticker, bid, ask, low, mid, high, last_latency_ms)
             time.sleep(cache.refresh)
 
     except KeyboardInterrupt:
