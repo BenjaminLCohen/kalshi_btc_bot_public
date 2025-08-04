@@ -150,7 +150,11 @@ class VolatilityMetrics:
         We follow the spec: use 1‑minute vol if available, else fall back to 1‑h,
         then 24‑h, then 0.0.
         """
-        return self.get_1m() or self.get_1h() or self.get_24h() or 0.0
+        for getter in (self.get_1m, self.get_1h, self.get_24h):
+            val = getter()
+            if val is not None:
+                return val
+        return 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +164,7 @@ class VolatilityMetrics:
 # These are optional examples; swap with your own endpoints as needed.
 
 def _binance_url(symbol: str, window: str) -> str:
-    return f"https://api.binance.com/api/v3/avgPrice?symbol={symbol}{window}"
+    return f"https://api.binance.com/api/v3/avgPrice?symbol={symbol}&window={window}"
 
 
 def fetch_hour_vol_from_binance(symbol="BTCUSDT") -> Optional[float]:
